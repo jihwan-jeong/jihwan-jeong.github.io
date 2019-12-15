@@ -1,14 +1,15 @@
 # main links
 main:
-
-  #- title: "Quick-Start Guide"
-  #  url: https://mmistakes.github.io/minimal-mistakes/docs/quick-start-guide/
-  # - title: "About"
-  #   url: https://mmistakes.github.io/minimal-mistakes/about/
+  - title: "Publications"
+    url: /publications/
+  - title: "Projects"
+    url: /projects/
+  - title: "Paper Reviews"
+    url: /paper-review/
+  - title: "Misc."
+    url: /misc/
   - title: "Archive"
     url: /year-archive/
-  - title: "Paper Reviews"
-    Url: /paper-review/
   # - title: "Sample Collections"
   #   url: /collection-archive/
   # - title: "Sitemap"
