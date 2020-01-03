@@ -1,39 +1,56 @@
-{% if site.footer_scripts %}
-  {% for script in site.footer_scripts %}
-    {% if script contains "://" %}
-      {% capture script_path %}{{ script }}{% endcapture %}
-    {% else %}
-      {% capture script_path %}{{ script | relative_url }}{% endcapture %}
-    {% endif %}
-    <script src="{{ script_path }}"></script>
-  {% endfor %}
-{% else %}
-  <script src="{{ '/assets/js/main.min.js' | relative_url }}"></script>
-  <script src="https://kit.fontawesome.com/4eee35f757.js"></script>
-{% endif %}
-
-{% if site.search == true or page.layout == "search" %}
-  {%- assign search_provider = site.search_provider | default: "lunr" -%}
-  {%- case search_provider -%}
-    {%- when "lunr" -%}
-      {% include_cached search/lunr-search-scripts.html %}
-    {%- when "google" -%}
-      {% include_cached search/google-search-scripts.html %}
-    {%- when "algolia" -%}
-      {% include_cached search/algolia-search-scripts.html %}
-  {%- endcase -%}
-{% endif %}
-
-{% include analytics.html %}
-{% include /comments-providers/scripts.html %}
-
-{% if site.after_footer_scripts %}
-  {% for script in site.after_footer_scripts %}
-    {% if script contains "://" %}
-      {% capture script_path %}{{ script }}{% endcapture %}
-    {% else %}
-      {% capture script_path %}{{ script | relative_url }}{% endcapture %}
-    {% endif %}
-    <script src="{{ script_path }}"></script>
-  {% endfor %}
-{% endif %}
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="1894.2">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; line-height: 14.0px; font: 12.0px Courier; color: #000000; -webkit-text-stroke: #000000}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; line-height: 14.0px; font: 12.0px Courier; color: #000000; -webkit-text-stroke: #000000; min-height: 14.0px}
+    span.s1 {font-kerning: none}
+  </style>
+</head>
+<body>
+<p class="p1"><span class="s1">{% if site.footer_scripts %}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>{% for script in site.footer_scripts %}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>{% if script contains "://" %}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>{% capture script_path %}{{ script }}{% endcapture %}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>{% else %}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>{% capture script_path %}{{ script | relative_url }}{% endcapture %}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>{% endif %}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;script src="{{ script_path }}"&gt;&lt;/script&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>{% endfor %}</span></p>
+<p class="p1"><span class="s1">{% else %}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;script src="{{ '/assets/js/main.min.js' | relative_url }}"&gt;&lt;/script&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>&lt;script src="https://kit.fontawesome.com/4eee35f757.js"&gt;&lt;/script&gt;</span></p>
+<p class="p1"><span class="s1">{% endif %}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1">{% if site.search == true or page.layout == "search" %}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>{%- assign search_provider = site.search_provider | default: "lunr" -%}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>{%- case search_provider -%}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>{%- when "lunr" -%}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>{% include_cached search/lunr-search-scripts.html %}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>{%- when "google" -%}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>{% include_cached search/google-search-scripts.html %}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>{%- when "algolia" -%}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>{% include_cached search/algolia-search-scripts.html %}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>{%- endcase -%}</span></p>
+<p class="p1"><span class="s1">{% endif %}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1">{% include analytics.html %}</span></p>
+<p class="p1"><span class="s1">{% include /comments-providers/scripts.html %}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1">{% if site.after_footer_scripts %}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>{% for script in site.after_footer_scripts %}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>{% if script contains "://" %}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>{% capture script_path %}{{ script }}{% endcapture %}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>{% else %}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">      </span>{% capture script_path %}{{ script | relative_url }}{% endcapture %}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>{% endif %}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;script src="{{ script_path }}"&gt;&lt;/script&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">  </span>{% endfor %}</span></p>
+<p class="p1"><span class="s1">{% endif %}</span></p>
+</body>
+</html>
