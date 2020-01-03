@@ -5,6 +5,7 @@ excerpt: "Derivation of backpropagation algorithm"
 categories: 
     - Machine Learning
 tags: [Machine Learning, Deep Learning]
+mathjax: true
 ---
 
 ## Introduction
@@ -353,7 +354,7 @@ class Layer:
         """
         raise NotImplementedError
 ```
-The first class that we need to build is Layer which is an abstract class. All the hidden layers and the output layers of the network we are going to build can be instantiated by classes that inherit this abstract class. Additionally, we will create an activation layer as well cause the layer also has forward and backward propagation.
+The first class that we need to build is Layer which is an abstract class. All the hidden layers and the output layers of the network we are going to build can be instantiated by classes that inherit this abstract class. Additionally, we will create an activation layer cause the layer also has forward and backward propagation.
 
 The first argument to the backward method is delta ($$\delta^{l+1}$$), the error from the next layer. The learning rate is to be used for the gradient descent step. 
 
