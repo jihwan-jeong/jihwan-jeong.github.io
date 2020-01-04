@@ -6,6 +6,9 @@ categories:
     - Machine Learning
 tags: [Machine Learning, Deep Learning]
 mathjax: true
+toc: true
+toc_label: Tabel of Contents
+classes: wide
 ---
 
 ## Introduction
@@ -27,7 +30,7 @@ You'll see that I've put quite some efforts in putting down nitty-gritty of deri
 ## Work with a Single Input
 To begin with, we need to define a bunch of notations that we'll use throughout this posting. We'll first look at how to backpropagate an error **when there's a single sample** (like what you'll do with SGD). Then, we'll build upon this a mini-batch notation which we are going to actually implement. 
 
-![A schematic representation of simple neural net](/assets/images/nn_diagram.png)
+![A schematic representation of simple neural net](/assets/images/backpropagation/nn_diagram.png)
 
 Look at the diagram above. We denote
 * input sample: $$\mathbf{x}\in\mathbb{R}^{1\times m_0}$$
@@ -90,7 +93,7 @@ __Hidden units__
 
 In the hidden units, we still want to compute the gradient of the loss w.r.t. each weight $$W_{ij}^l$$ and bias $$b_j^l$$. However, unlike in the output nodes, now $$W_{ij}^l$$ can affect $$E$$ through multiple paths. It's helpful to look at the diagram below.
 
-![Links from hidden units](/assets/images/hidden_units.jpeg)
+![Links from hidden units](/assets/images/backpropagation/hidden_units.jpeg)
 
 As can be seen, we need to consider the downstream nodes of $$j$$th node in the $$l$$th layer to correctly compute $$\frac{\partial E}{\partial W_{ij}^l}$$. However, it is still the case that $$E$$ depends on $$W_{ij}^l$$ only through $$u_j^l$$ (except for the softmax activation at the output layer); hence, $$\frac{\partial E}{\partial W_{ij}^l}=\frac{\partial E}{\partial u_j^l}\cdot \frac{\partial u_j^l}{\partial W_{ij}^l}$$ holds. 
 
@@ -361,5 +364,443 @@ The first argument to the backward method is delta ($$\delta^{l+1}$$), the error
 In this post, we will only look at fully-connected layers which can be defined as follows:
 
 ```python
+class FCLayer(Layer):
+    def __init__(self, input_size, output_size):
+        """
+        :param input_size: the number of nodes in the previous layer
+        :param output_size: the number of nodes in 'this' layer
+        """
+        self.weights = np.random.randn(input_size, output_size)
+        self.bias = np.random.randn(1, output_size)
 
+    def forward(self, input_data):
+        """
+        :param input_data: H^{l-1}
+        :return: self.output = U^l = H^{l-1} W^l + 1 b^l
+        """
+        n = input_data.shape[0]             # size of mini-batch
+        self.input_data = input_data        # store the input as attribute
+        self.output = self.input_data @ self.weights + np.ones((n, 1)) @ self.bias
+        return self.output
+
+    def backward(self, delta_n, lr):
+        """
+        'delta_n' is the delta from the next layer
+        'delta' is the delta to be passed to the previous layer
+
+        Equations:
+        * delta = delta_n W.T
+        * dEdW = (H^{l-1}).T @ delta_n
+        :return delta
+        """
+        delta = delta_n @ self.weights.T
+        dEdW = self.input_data.T @ delta_n
+        dEdb = np.sum(delta_n, axis=0, keepdims=True)
+
+        # gradient descent step
+        self.weights -= lr * dEdW
+        self.bias -= lr * dEdb
+        return delta
 ```
+
+Note how the input to a layer is saved when feed forwarding so that it can be used in the backward step. Also, an activation is intentionally omitted because we will have a separate layer for that. In an activation layer, we can simply multiply $$\phi'(U^l)$$ to delta in an element-wise manner and pass it to the previous layer. 
+
+### Activation
+```python
+class Activation(Layer):
+    def __init__(self, activation, der_activation):
+        """
+        :param activation:      activation function
+        :param der_activation:  derivative of the activation function
+        """
+        self.activation = activation
+        self.der_activation = der_activation
+
+    def forward(self, input_data):
+        """
+        :param input_data: U^l
+        :return: self.output = H^l = \phi(U^l)
+        """
+        self.input_data = input_data
+        self.output = self.activation(self.input_data)
+        return self.output
+
+    def backward(self, delta_n, lr):
+        return self.der_activation(self.input_data) * delta_n
+```
+
+Prior to instantiating an activation layer, an activation function and its derivative should be defined as Python functions. Below are a few examples of activations. 
+
+__ReLU__
+```python
+def relu(U):
+    return np.maximum(U, 0)
+
+def relu_prime(U):
+    return (U > 0) * 1.0
+```
+
+__tanh__
+```python
+def tanh(U):
+    return np.tanh(U)
+
+def tanh_prime(U):
+    return 1 - np.power(np.tanh(U), 2)
+```
+where $$\tanh(U)=\frac{\exp(U)-\exp(-U)}{\exp(U)+\exp(-U)}$$.
+
+__Sigmoid__
+```python
+def sigmoid(U):
+    # Implemented in this way for numerical stability
+    return np.where(U >= 0,
+                    1 / (1 + np.exp(-U)),
+                    np.exp(U) / (1 + np.exp(U)))
+
+def sigmoid_prime(U):
+    Phi = sigmoid(U)
+    return Phi * (1-Phi)
+```
+
+__Softmax__
+```python
+def softmax(U):
+    # Below is a numerically-stable implementation of the softmax function
+    exp = np.exp(U - np.max(U, axis=1, keepdims=True))
+    return exp / exp.sum(axis=1, keepdims=True)
+```
+Note that the softmax function defined here will not be used in backpropagating errors, but it will be used in testing.
+
+### Loss functions
+```python
+class Loss:
+    def loss(self, pred, target):
+        """
+        Computes the loss function values by comparing pred and target
+        :param pred:    the output of the output layer
+        :param target:  the label
+        :return:
+        """
+        raise NotImplementedError
+
+    def diff_loss(self, pred, target):
+        """
+        Computes the derivative of the loss function (delta) 
+        """
+        raise NotImplementedError
+```
+
+__MSE loss__
+```python
+class MSELoss(Loss):
+    def loss(self, pred, target):
+        return np.sum(np.power(pred - target, 2), axis=1) / 2
+
+    def diff_loss(self, pred, target):
+        return (pred - target) / pred.shape[0]
+```
+
+__Cross-entropy loss__
+As mentioned, the cross-entropy loss is **always** conjoined with the softmax output, so both are implemented together in one class as follows:
+```python
+class CrossEntropyLoss(Loss):
+    """
+    This class combines the cross entropy loss with the softmax outputs as done in the PyTorch implementation.
+    The return value of self.diff_loss will then be directly handed over to the output FCLayer
+    """
+    def loss(self, pred, target):
+        pred = self._softmax(pred)
+        return - np.trace(target @ np.log(pred).T)
+
+    def diff_loss(self, pred, target):
+        pred = self._softmax(pred)
+        return pred - target
+
+    @staticmethod
+    def _softmax(pred):
+        # Below is a numerically-stable implementation of the softmax function
+        exp = np.exp(pred - np.max(pred))
+        return exp / exp.sum(axis=1, keepdims=True)
+```
+
+### Neural network module
+Putting it all together, here is the neural network class that you can instantiate and use for an actual use. Toy examples showing how to use the module will be presented in the next section.
+
+```python
+class NeuralNetwork:
+    def __init__(self):
+        self.layers = []        # FCLayer and activation layers will be appended
+        self.loss = None        # the loss function
+        self.diff_loss = None   # and its derivative
+        self.loss_hist = []
+
+    def add(self, layer):
+        """
+        Either a FCLayer object or an Activation object will be put in as an argument,
+        which will be appended to self.layers.
+        """
+        self.layers.append(layer)
+
+    def set_loss(self, loss, diff_loss):
+        # Setting the loss function and its derivative
+        self.loss = loss
+        self.diff_loss = diff_loss
+
+    def predict(self, input_data):
+        """
+        :param input_data: (n x m_0) array of input samples
+        :return: the output of the output layer
+        """
+        out = input_data
+
+        # Feed forward
+        for l in self.layers:
+            out = l.forward(out)
+        return out
+
+    def fit(self, x_train, y_train, epochs, lr, batch_size, x_test=None, y_test=None, verbose=False):
+        """
+        :param x_train:     input data of training set
+        :param y_train:     corresponding target values of training set
+        :param epochs:      number of training epochs
+        :param lr:          learning rate
+        :param batch_size:  mini-batch size
+        :param x_test:      test images (if given)
+        :param y_test:      test labels (if given)
+        """
+
+        inds = list(range(x_train.shape[0]))
+        N = len(inds)  # number of training samples
+
+        for i in range(epochs):
+            # randomly shuffle the training data at the beginning of each epoch
+            inds = np.random.permutation(inds)
+            x_train = x_train[inds]
+            y_train = y_train[inds]
+
+            loss = 0
+
+            for b in range(0, N, batch_size):
+                # get the mini-batch
+                x_batch = x_train[b: b + batch_size]
+                y_batch = y_train[b: b + batch_size]
+
+                # feed forward
+                pred = self.predict(x_batch)
+
+                # Error
+                loss += self.loss(pred, y_batch) / N
+
+                # Back propagation
+                delta = self.diff_loss(pred, y_batch)
+                for l in reversed(self.layers):
+                    delta = l.backward(delta, lr)
+            
+            # record loss per epoch
+            self.loss_hist.append(loss)
+            
+            if verbose:
+                print()
+                print("Epoch %d/%d\terror=%.5f" % (i + 1, epochs, loss), end='\t', flush=True)
+
+            if x_test is not None:
+                accuracy = self.test(x_test, y_test)
+                print("Test accuracy: {:2}".format(accuracy), end='')
+
+    def test(self, x_test, y_test):
+        # test on the test set in classification
+        pred = softmax(self.predict(x_test))
+        pred_label, y_test_label = np.argmax(pred, axis=1), np.argmax(y_test, axis=1)
+        accuracy = np.mean(pred_label == y_test_label)
+        return accuracy
+```
+In the case of classification problem, we can monitor the accuracy on the test set to see how our model is generalizing over unseen data, which is defined in NeuralNetwork.test() method. 
+
+## Toy Examples
+### MNIST handwritten digits
+Let's use the famous MNIST dataset to see if our neural network model is correctly implemented. The MNIST dataset contains handwritten digits of 0 to 9, and training a model to predict the correct label for an image is a typical classification problem. The dataset can be downloaded [here](https://github.com/jihwan-jeong/jihwan-jeong.github.io/raw/master/assets/data/mnist.pkl.gz) (downloaded via Keras, then pickled by me). The filename is 'mnist.pkl.gz', and you should place the file in the directory where your executable python file is. The mnist file is a tuple of train and test set which are composed of numpy arrays of images and labels. 
+
+In a separate file named 'Data.py' write below lines.
+
+```python
+import pickle, gzip
+import numpy as np
+
+def load_mnist():
+    f = gzip.open('mnist.pkl.gz', 'rb')
+    (train_image, train_label), (test_image, test_label) = pickle.load(f)
+
+    # Flatten images to (num_images, pixels), normalize pixel values to (-0.5, 0.5) range
+    train_image = np.vstack([image.reshape(-1, ) for image in train_image])/255 - 0.5
+    test_image = np.vstack([image.reshape(-1, ) for image in test_image])/255 - 0.5
+
+    # One-hot encoding
+    train_label, test_label = np.eye(10)[train_label], np.eye(10)[test_label]
+    return (train_image, train_label), (test_image, test_label)
+```
+
+Now, let's define a neural network with the following specs.
+- 1 hidden layer with 64 nodes and an output layer
+- ReLU activation in the hidden layer
+- Softmax output with cross-entropy error loss
+- Mini-batch size is set to 16
+- Learning rate is 0.005 
+- 10 epochs
+
+```python
+# Set a random seed for reproducibility
+np.random.seed(1)
+
+# load data
+(train_image, train_label), (test_image, test_label) = load_mnist()
+
+# Set hyperparameters
+lr = 0.005
+batch_size = 16
+epochs = 10
+
+# Define a model
+nn = NeuralNetwork()
+nn.add(FCLayer(train_image.shape[1], 64))       # 784 x 64 fully connected layer
+nn.add(Activation(relu, relu_prime))            # relu activation
+nn.add(FCLayer(64, train_label.shape[1]))       # 64 x 10 fully connected layer
+loss = CrossEntropyLoss()                       
+nn.set_loss(loss.loss, loss.diff_loss)          # softmax output with cross-entropy loss
+
+# Train the model
+nn.fit(train_image, train_label, epochs=epochs, lr=lr, batch_size=batch_size,
+       x_test=test_image, y_test=test_label)
+
+"""Result"""
+Epoch 1/10	error=1.20417	Test accuracy: 0.807
+Epoch 2/10	error=0.59282	Test accuracy: 0.8504
+Epoch 3/10	error=0.48660	Test accuracy: 0.8795
+Epoch 4/10	error=0.43013	Test accuracy: 0.885
+Epoch 5/10	error=0.38977	Test accuracy: 0.9009
+Epoch 6/10	error=0.36007	Test accuracy: 0.901
+Epoch 7/10	error=0.33777	Test accuracy: 0.9059
+Epoch 8/10	error=0.32317	Test accuracy: 0.9078
+Epoch 9/10	error=0.30777	Test accuracy: 0.9169
+Epoch 10/10	error=0.29622	Test accuracy: 0.9194
+```
+
+There you go! We can see that the neural network module is able to achieve 91.9% accuracy on the test set after being trained for 10 epochs. This is not too bad, but we could've done better if we used a better optimizer (other than mere gradient descent) and tuned hyper-parameters. 
+
+### Regression problem
+We've seen how to tackle a multi-class classification problem, so now let's look at a regression problem. We are going to use a synthetic regression problem with the dataset created from [here](http://www.cse.chalmers.se/~richajo/dit866/lectures/l9/Nonlinear%20regression%20toy%20example.html). 
+
+```python
+def toy_regression():
+    np.random.seed(1)
+    N = 2000
+    X = 0.5 * np.random.normal(size=N) + 0.35
+
+    Xt = 0.75 * X - 0.35
+    X = X.reshape((N, 1))
+
+    Y = -(8 * Xt ** 2 + 0.1 * Xt + 0.1) + 0.05 * np.random.normal(size=N)
+    Y = np.exp(Y) + 0.05 * np.random.normal(size=N)
+    Y /= max(np.abs(Y))
+    Y = Y.reshape(-1, 1)
+    return X, Y
+```
+
+The dataset looks like below.
+
+<div style="text-align: center"><img src="/assets/images/backpropagation/toy_regression.png" width="600"/></div>
+
+This time, let's use the following specs of a network:
+- 2 hidden layers with 16 nodes and an output layer
+- ReLU activation on the first hidden layer and sigmoid on the second, while no activation on the output layer
+- MSE loss
+- Mini-batch size is set to 16
+- Learning rate is 0.001
+- Number of epochs: 300
+
+As a simple experiment, we can see the role of nonlinear activation functions by first trying with no activations. You'll see that the network is then nothing but a linear regression model.
+
+```python
+# Set a random seed for reproducibility
+np.random.seed(1)
+
+# load data
+Xtrain, Ytrain = regression()
+
+# Define a model (without nonlinear activation)
+nn = NeuralNetwork()
+nn.add(FCLayer(Xtrain.shape[1], 16))            # 1 x 16 fully connected layer
+nn.add(FCLayer(16, 16))                         # 16 x 16 fully connected layer
+nn.add(FCLayer(16, 1))                          # 16 x 1 fully connected output layer
+loss = MSELoss()
+nn.set_loss(loss.loss, loss.diff_loss)
+
+# set hyperparameters
+lr = 0.001
+batch_size = 16
+epochs = 300
+
+# Train the model
+nn.fit(Xtrain, Ytrain, epochs, lr, batch_size, verbose=False)
+
+# Plot the result
+plt.figure(figsize=(10, 8))
+plt.plot(Xtrain[:, 0], Ytrain, '.', label='Target', markersize=2.5)
+plt.plot(Xtrain[:, 0], nn.predict(Xtrain), 'r.', label='prediction', markersize=2.5)
+plt.legend(fontsize=15)
+plt.xlabel("x", fontsize=20)
+plt.ylabel("y", fontsize=20)
+plt.title("Prediction (Linear)", fontsize=20)
+plt.show()
+```
+The results can be seen from the figure below. It is clear that the network cannot capture the nonlinearity of the train data.
+
+<div style="text-align: center"><img src="/assets/images/backpropagation/prediction_linear.png" width="600"/></div>
+
+So, we need to add nonlinear activations!
+```python
+# Define a model (with activation functions)
+nn = NeuralNetwork()
+nn.add(FCLayer(Xtrain.shape[1], 16))            # 1 x 16 fully connected layer
+nn.add(Activation(relu, relu_prime))            # relu activation
+nn.add(FCLayer(16, 16))                         # 16 x 16 fully connected layer
+nn.add(Activation(sigmoid, sigmoid_prime))      # sigmoid activation
+nn.add(FCLayer(16, 1))                          # 16 x 1 output layer
+loss = MSELoss()
+nn.set_loss(loss.loss, loss.diff_loss)
+
+# Train the model
+nn.fit(Xtrain, Ytrain, epochs, lr, batch_size, verbose=False)
+
+# Plot the results
+plt.figure(figsize=(10, 8))
+plt.plot(Xtrain[:, 0], Ytrain, '.', label='Target', markersize=2.5)
+plt.plot(Xtrain[:, 0], nn.predict(Xtrain), 'r.', markersize=2.5, label='prediction')
+plt.legend(fontsize=15)
+plt.xlabel("x", fontsize=20)
+plt.ylabel("y", fontsize=20)
+plt.title("Prediction (Nonlinear)", fontsize=20)
+plt.show()
+```
+
+We can see that now the model is able to learn the nonlinearity pretty well.
+
+<div style="text-align: center"><img src="/assets/images/backpropagation/prediction_nonlinear.png" width="600"/></div>
+
+Also, we can plot how the loss value is dropping as we train the model for more epochs. 
+
+```python
+plt.figure(figsize=(10, 8))
+plt.plot(nn.loss_hist)
+plt.ylim(0, 0.05)
+plt.xlabel('Number of epochs', fontsize=15)
+plt.ylabel('MSE loss per epoch', fontsize=15)
+plt.title('MSE loss v.s. Epoch', fontsize=15)
+plt.show()
+```
+
+<div style="text-align: center"><img src="/assets/images/backpropagation/loss.png" width="600"/></div>
+
+The loss drops quickly in the first 5 epochs, then slowly reduces until reaching a plateau. Although training for too many epochs is a bad idea since it will result in overfitting, we are not particularly interested in the overfitting issue in this post. Rather, we were able to check that indeed our neural network module is learning the nonlinear function pretty nicely!
+
+## Conclusion
