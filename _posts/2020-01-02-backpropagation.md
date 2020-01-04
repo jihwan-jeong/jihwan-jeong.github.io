@@ -25,7 +25,7 @@ I'd say it's almost impossible to actually build a neural network module that is
 * Play with different activation functions, architectures, and dataset using the built neural network module.
 
 (Note that I'm assuming a basic familiarity with neural networks.)<br>
-You'll see that I've put quite some efforts in putting down nitty-gritty of deriving simple vectorized notations of gradients necessary for updating the weights and biases of a neural network. 
+You'll see that I've put quite some efforts in putting down nitty-gritty of deriving simple vectorized notations of gradients necessary for updating the weights and biases of a neural network. If you want to skip all the details and only see the implementation, go to [this section](https://jihwan-jeong.github.io/machine%20learning/backpropagation/#implementation). Also, the code is available from [my github repo](https://github.com/jihwan-jeong/neuralnet-using-numpy), so you'll want to check this out as well!
 
 ## Work with a Single Input
 To begin with, we need to define a bunch of notations that we'll use throughout this posting. We'll first look at how to backpropagate an error **when there's a single sample** (like what you'll do with SGD). Then, we'll build upon this a mini-batch notation which we are going to actually implement. 
@@ -804,3 +804,4 @@ plt.show()
 The loss drops quickly in the first 5 epochs, then slowly reduces until reaching a plateau. Although training for too many epochs is a bad idea since it will result in overfitting, we are not particularly interested in the overfitting issue in this post. Rather, we were able to check that indeed our neural network module is learning the nonlinear function pretty nicely!
 
 ## Conclusion
+Now we are at the end of this long journey of understanding and implementing the backpropagation algorithm. I do hope that this will help you (and me) get the idea of how the fancy neural network libraries work behind the scenes and learn the way to build your own module with the derived equations. Again, here I give you the link to [my github repo](https://github.com/jihwan-jeong/neuralnet-using-numpy) containing all the above code, so you can clone and play with the code. Please feel free to leave comments if you know how to improve this post or if you have questions!
