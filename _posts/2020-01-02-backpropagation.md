@@ -253,33 +253,35 @@ Now that we have the vectorized equations of gradients, we are almost there to a
 Although you may work with a number of different loss functions, we will restrict our derivation to the mean-squared error (MSE) loss and the cross entropy loss.
 
 ### MSE loss
-This is one of the most commonly used loss (e.g. in the least-squares method), which is defined as follows:
+This is one of the most commonly used losses (e.g. in the least-squares method), which is defined as follows:
 $$
 \begin{align}
-E = \frac{1}{2n}\sum_{q=1}^n \lVert t_q - H_{q\cdot}^L \rVert^2 = \frac{1}{2n}\sum_{q=1}^n \sum_{j=1}^{m_L}(t_{qj} - H_{qj}^L)^2
+E = \frac{1}{2n}\sum_{q=1}^n \lVert t_q - y_q \rVert^2 = \frac{1}{2n}\sum_{q=1}^n \sum_{j=1}^{m_L}(t_{qj} - y_{qj})^2
 \end{align}\\
 $$
-where $$t_q\in\mathbb{R}^{1\times m_L}$$ is the $$q$$th target value and $$H^L_{q\cdot}$$ is the corresponding output from the neural net. 
+where $$t_q\in\mathbb{R}^{1\times m_L}$$ is the $$q$$th target value and $$y^L_q$$ is the corresponding output from the neural net. 
 
-Now, we can simply compute the derivative of $$E$$ w.r.t. $$H^L$$, and get $$\delta$$:
+Now, we can simply compute the derivative of $$E$$ w.r.t. $$y$$, and get $$\delta$$:
 
 $$
 \begin{align}
-\frac{\partial E^q}{\partial H_{qj}^L}&=\frac{1}{n}(H_{qj}^L-t_{qj})\\
-\delta_{qj}^L &=\frac{\partial E}{\partial H_{qj}^L}\frac{\partial H_{qj}^L}{\partial U_{qj}^L}=\frac{1}{n}(H_{qj}^L-t_{qj})\cdot \phi'(U_{qj}^L)\\
-\therefore\quad \delta^L &= \frac{1}{n}(H^L - t)\odot \phi'(U^L)
+\frac{\partial E^q}{\partial y_{qj}}&=\frac{1}{n}(y_{qj}-t_{qj})\\
+\delta_{qj}^L &=\frac{\partial E}{\partial y_{qj}}\frac{\partial y_{qj}}{\partial U_{qj}^L}=\frac{1}{n}(y_{qj}-t_{qj})\cdot \phi'(U_{qj}^L)\\
+\therefore\quad \delta^L &= \frac{1}{n}(y - t)\odot \phi'(U^L)
 \end{align}
 $$
 
+Normally in a regression problem, we want the outputs to have unbounded range, so we can simply use the linear output without an activation (i.e., $$y = U^L$$). In a classification problem, however, we want the outputs to be within 0 and 1, so the softmax activation function is applied to the linear output (i.e., $$y = \phi(U^L)$$).
+
 ### Cross-entropy loss
-While the MSE loss is normally used in the regression problem, the cross-entropy loss is preferred when working with a classification problem. Since the cross-entropy loss takes probabilities as its inputs, we need to squash output values from the output layer such that $$\sum_j H_{qj}^L =1$$ as well as $$H_{qj}^L\in [0, 1]$$ for all $$q$$ and $$j$$. Hence, the activation function in the output layer is usually set to the softmax function.
+While the MSE loss is normally used in the regression problem, the cross-entropy loss is preferred when working with a classification problem. Since the cross-entropy loss takes probabilities as its inputs, we need to squash output values from the output layer such that $$\sum_j H_{qj}^L =1$$ as well as $$H_{qj}^L\in [0, 1]$$ for all $$q$$ and $$j$$. Hence, the activation function in the output layer is set to the softmax function.
 
 Using the cross-entropy loss along with the softmax output changes one of the fundamental assumptions that we made when deriving the gradients, so I'll handle the case in the following section. For now, I'll just present the definition of the cross-entropy loss below:
 
 $$
 \begin{align}
 E &= \sum_{q=1}^n E^q\\
-\text{where}\quad E^q &= -\sum_{j=1}^{m_L}t_{qj}\log(H_{qj}^L)
+\text{where}\quad E^q &= -\sum_{j=1}^{m_L}t_{qj}\log(y_{qj})
 \end{align}
 $$
 
@@ -305,36 +307,36 @@ __Derivative__:   $$\phi'(U) = \phi(U)\big( 1-\phi(U) \big)$$
 where $$\phi$$ is applied element-wisely.
 
 ### Softmax function
-As mentioned, let's work out the derivative of the cross-entropy loss function with the softmax output. Firstly, the softmax function is defined as follows:
+In this part, let's work out the derivative of the cross-entropy loss function with the softmax output. Firstly, the softmax function is defined as follows:
 
 $$\begin{align}
-\phi_{qj} &= \frac{\exp (U_{qj}^L)}{\sum_k \exp (U^L_{qk})}
+y_{qj} = \phi_{qj} &= \frac{\exp (U_{qj}^L)}{\sum_k \exp (U^L_{qk})}
 \end{align}
 $$
 
-What changes when using the softmax output is the $$\delta$$ because now we can't write $$\frac{\partial E}{\partial U^L_{qj}}=\frac{\partial E}{\partial H^L_{qj}}\frac{\partial H^L_{qj}}{\partial U_{qj}^L}$$. Instead, the input of the $$j$$th output node $$U_{qj}^L$$ affects $$E$$ through all the other nodes, which should be taken into account in the chain rule.
+What changes when using the softmax output is the $$\delta$$ because now we can't write $$\frac{\partial E}{\partial U^L_{qj}}=\frac{\partial E}{\partial y_{qj}}\frac{\partial y_{qj}}{\partial U_{qj}^L}$$. Instead, the input of the $$j$$th output node $$U_{qj}^L$$ affects $$E$$ through all the other nodes, which should be taken into account in the chain rule.
 
 $$\begin{align}
-\frac{\partial H_{qc}^L}{\partial U_{qj}^L}&=
+\frac{\partial y_{qc}}{\partial U_{qj}^L}&=
 \begin{cases} 
-H_{qj}^L (1-H_{qj}^L)\quad\text{if}\quad c=j,\\
--H_{qc}^L\cdot H_{qj}^L\quad\quad\text{otherwise}
+y_{qj} (1-y_{qj})\quad\text{if}\quad c=j,\\
+-y_{qc}\cdot y_{qj}\quad\quad\text{otherwise}
  \end{cases}\\
-&= H_{qc}^L(1_{c=j}-H_{qj}^L)
+&= y_{qc}(1_{c=j}-y_{qj})
 \end{align}
 $$
 
 where $$1_{c=j}$$ is the indicator function (or direc-delta function) that gives 1 when $$c=j$$, and $$0$$ otherwise.
 
-The derivative of the cross-entropy loss w.r.t. the $qj$th output is $$\frac{\partial E}{\partial H_{qj}^L}=-\frac{t_{qj}}{H_{qj}^L}$$; hence, the delta becomes
+The derivative of the cross-entropy loss w.r.t. the $qj$th output is $$\frac{\partial E}{\partial y_{qj}}=-\frac{t_{qj}}{y_{qj}}$$; hence, the delta becomes
 
 $$\begin{align}
-\delta_{qj}^L = \frac{\partial E}{\partial U_{qj}^L}&=\sum_c \frac{\partial E}{\partial H_{qc}^L}\frac{\partial H_{qc}^L}{\partial U_{qj}^L}\\
-&= \sum_c \frac{\partial E}{\partial H_{qc}^L}H_{qc}^L(1_{c=j}-H_{qj}^L)\\
-&= \frac{\partial E^q}{\partial H_{qj}^L}H_{qj}^L - \sum_c \frac{\partial E^q}{\partial H_{qc}^L}H_{qc}^L H_{qj}^L\\
-&= -\frac{t_{qj}}{H_{qj}^L}H_{qj}^L - \sum_c \bigg( -\frac{t_{qc}}{H_{qc}^L}\bigg)H_{qc}^LH_{qj}^L\\
-&= H_{qj}^L\sum_c t_{qc} - t_{qj} = H_{qj}^L - t_{qj}\\
-\text{or, }\quad \delta^L &= H^L - t
+\delta_{qj}^L = \frac{\partial E}{\partial U_{qj}^L}&=\sum_c \frac{\partial E}{\partial y_{qc}}\frac{\partial y_{qc}}{\partial U_{qj}^L}\\
+&= \sum_c \frac{\partial E}{\partial y_{qc}}y_{qc}(1_{c=j}-y_{qj})\\
+&= \frac{\partial E^q}{\partial y_{qj}}y_{qj} - \sum_c \frac{\partial E^q}{\partial y_{qc}}y_{qc} y_{qj}\\
+&= -\frac{t_{qj}}{y_{qj}}y_{qj} - \sum_c \bigg( -\frac{t_{qc}}{y_{qc}}\bigg)y_{qc}y_{qj}\\
+&= y_{qj}\sum_c t_{qc} - t_{qj} = y_{qj} - t_{qj}\\
+\text{or, }\quad \delta^L &= y - t
 \end{align}
 $$
 
@@ -495,13 +497,14 @@ __MSE loss__
 ```python
 class MSELoss(Loss):
     def loss(self, pred, target):
-        return np.sum(np.power(pred - target, 2), axis=1) / 2
+        return np.sum(np.power(pred - target, 2)) / 2
 
     def diff_loss(self, pred, target):
         return (pred - target) / pred.shape[0]
 ```
 
 __Cross-entropy loss__
+
 As mentioned, the cross-entropy loss is **always** conjoined with the softmax output, so both are implemented together in one class as follows:
 ```python
 class CrossEntropyLoss(Loss):
@@ -511,7 +514,7 @@ class CrossEntropyLoss(Loss):
     """
     def loss(self, pred, target):
         pred = self._softmax(pred)
-        return - np.trace(target @ np.log(pred).T)
+        return - np.trace(target @ np.log(pred+1e-15).T)
 
     def diff_loss(self, pred, target):
         pred = self._softmax(pred)
@@ -520,7 +523,7 @@ class CrossEntropyLoss(Loss):
     @staticmethod
     def _softmax(pred):
         # Below is a numerically-stable implementation of the softmax function
-        exp = np.exp(pred - np.max(pred))
+        exp = np.exp(pred - np.max(pred, axis=1, keepdims=True))
         return exp / exp.sum(axis=1, keepdims=True)
 ```
 
@@ -619,7 +622,7 @@ In the case of classification problem, we can monitor the accuracy on the test s
 
 ## Toy Examples
 ### MNIST handwritten digits
-Let's use the famous MNIST dataset to see if our neural network model is correctly implemented. The MNIST dataset contains handwritten digits of 0 to 9, and training a model to predict the correct label for an image is a typical classification problem. The dataset can be downloaded [here](https://github.com/jihwan-jeong/jihwan-jeong.github.io/raw/master/assets/data/mnist.pkl.gz) (downloaded via Keras, then pickled by me). The filename is 'mnist.pkl.gz', and you should place the file in the directory where your executable python file is. The mnist file is a tuple of train and test set which are composed of numpy arrays of images and labels. 
+Let's use the famous MNIST dataset to see if our neural network model is correctly implemented. The MNIST dataset contains handwritten digits of 0 to 9, and training a model to predict the correct label for an image is a typical classification problem. The dataset can be downloaded [here](https://github.com/jihwan-jeong/jihwan-jeong.github.io/raw/master/assets/data/mnist.pkl.gz) (downloaded via Keras, then pickled by me). The filename is 'mnist.pkl.gz', and you should place the file in the directory where your Data.py file is. The mnist file is a tuple of train and test set which are composed of numpy arrays of images and labels. 
 
 In a separate file named 'Data.py' write below lines.
 
@@ -753,7 +756,7 @@ plt.ylabel("y", fontsize=20)
 plt.title("Prediction (Linear)", fontsize=20)
 plt.show()
 ```
-The results can be seen from the figure below. It is clear that the network cannot capture the nonlinearity of the train data.
+Below is the result. It is clear that the network cannot capture the nonlinearity of the train data.
 
 <div style="text-align: center"><img src="/assets/images/backpropagation/prediction_linear.png" width="600"/></div>
 
@@ -765,7 +768,7 @@ nn.add(FCLayer(Xtrain.shape[1], 16))            # 1 x 16 fully connected layer
 nn.add(Activation(relu, relu_prime))            # relu activation
 nn.add(FCLayer(16, 16))                         # 16 x 16 fully connected layer
 nn.add(Activation(sigmoid, sigmoid_prime))      # sigmoid activation
-nn.add(FCLayer(16, 1))                          # 16 x 1 output layer
+nn.add(FCLayer(16, 1))                          # 16 x 1 output layer (no activation to the output!)
 loss = MSELoss()
 nn.set_loss(loss.loss, loss.diff_loss)
 
@@ -804,4 +807,4 @@ plt.show()
 The loss drops quickly in the first 5 epochs, then slowly reduces until reaching a plateau. Although training for too many epochs is a bad idea since it will result in overfitting, we are not particularly interested in the overfitting issue in this post. Rather, we were able to check that indeed our neural network module is learning the nonlinear function pretty nicely!
 
 ## Conclusion
-Now we are at the end of this long journey of understanding and implementing the backpropagation algorithm. I do hope that this will help you (and me) get the idea of how the fancy neural network libraries work behind the scenes and learn the way to build your own module with the derived equations. Again, here I give you the link to [my github repo](https://github.com/jihwan-jeong/neuralnet-using-numpy) containing all the above code, so you can clone and play with the code. Please feel free to leave comments if you know how to improve this post or if you have questions!
+Now we are at the end of this long journey of understanding and implementing the backpropagation algorithm. I do hope that this will help you (and me) get the idea of how the fancy neural network libraries work behind the scenes and learn the way to build your own module with the derived equations. Here is the link to [my github repo](https://github.com/jihwan-jeong/neuralnet-using-numpy) containing all the above code, so you can clone and play with the code. Please feel free to leave comments if you know how to improve this post or if you have questions!
